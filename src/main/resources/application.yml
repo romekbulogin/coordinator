@@ -1,1 +1,5 @@
-spring.application.name=coordinator
+spring:
+  application:
+    name: coordinator
+logging:
+  config: classpath:log4j2.yml
