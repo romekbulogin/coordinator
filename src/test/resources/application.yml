@@ -3,9 +3,5 @@ spring:
     name: coordinator
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-coordinator:
-  producers:
-    - localhost:1337
-    - localhost:1488
 logging:
   config: classpath:log4j2.yml
