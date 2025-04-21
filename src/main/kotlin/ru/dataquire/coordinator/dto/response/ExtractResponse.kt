@@ -1,6 +1,6 @@
 package ru.dataquire.coordinator.dto.response
 
-data class MigrateResponse(
+data class ExtractResponse(
     val status: String,
-    val tables: List<String>
+    val count: Int
 )

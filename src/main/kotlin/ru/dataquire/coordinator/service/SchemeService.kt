@@ -1,6 +1,5 @@
 package ru.dataquire.coordinator.service
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.constraint
@@ -10,44 +9,50 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import ru.dataquire.coordinator.dto.DataQuireTable
+import ru.dataquire.coordinator.dto.datasource.DataQuireDataSource
 import ru.dataquire.coordinator.dto.request.MigrateRequest
-import ru.dataquire.coordinator.dto.response.MigrateResponse
+import ru.dataquire.coordinator.dto.response.SchemeMigrateResponse
 import java.sql.Connection
+import java.sql.DriverManager
+import java.sql.SQLException
 import java.util.*
 
 @Service
-class SchemeService(
-    private val mapper: ObjectMapper
-) {
+class SchemeService {
     private val logger: Logger = LoggerFactory.getLogger(SchemeService::class.java)
 
-    fun migrate(request: MigrateRequest): MigrateResponse {
-        logger.info("[MIGRATE] Migration started from {}", request.origin)
-        val originConnection: Connection = request.origin.getConnection()
-        val recipientConnection: Connection = request.recipient.getConnection()
+    fun migrate(request: MigrateRequest): SchemeMigrateResponse {
+        return try {
+            logger.info("[MIGRATE SCHEME] Migration started from {}", request.origin)
+            val originConnection: Connection = request.origin.getConnection()
+            val recipientConnection: Connection = request.recipient.getConnection()
 
-        logger.debug("[MIGRATE] Check connection to {}", request.origin)
-        check(originConnection.isConnected()) { "Origin is not connected" }
+            logger.debug("[MIGRATE SCHEME] Check connection to {}", request.origin)
+            check(originConnection.isConnected()) { "Origin is not connected" }
 
-        logger.debug("[MIGRATE] Check connection to {}", request.recipient)
-        check(recipientConnection.isConnected()) { "Recipient is not connected" }
+            logger.debug("[MIGRATE SCHEME] Check connection to {}", request.recipient)
+            check(recipientConnection.isConnected()) { "Recipient is not connected" }
 
-        val catalog = originConnection.catalog
+            val catalog = originConnection.catalog
 
-        val tables: List<DataQuireTable> = originConnection.use { connection ->
-            extractScheme(connection)
+            val tables: List<DataQuireTable> = originConnection.use { connection ->
+                extractScheme(connection)
+            }
+
+            recipientConnection.use { connection ->
+                val dsl = DSL.using(connection)
+
+                dsl.createDatabaseIfNotExists(catalog).execute()
+                dsl.setCatalog(catalog).execute()
+
+                tables.forEach { table -> createTable(dsl, table) }
+            }
+            logger.info("[MIGRATE SCHEME] Successfully migrated to {}", request.recipient)
+            SchemeMigrateResponse("Migration finished", tables)
+        } catch (ex: SQLException) {
+            logger.error("[MIGRATE SCHEME] {}", ex.localizedMessage)
+            SchemeMigrateResponse("Migration failed: ${ex.localizedMessage}", emptyList())
         }
-
-        recipientConnection.use { connection ->
-            val dsl = DSL.using(connection)
-
-            dsl.createDatabaseIfNotExists(catalog).execute()
-            dsl.setCatalog(catalog).execute()
-
-            tables.forEach { table -> createTable(dsl, table) }
-        }
-        logger.info("[MIGRATE] Successfully migrated to {}", request.recipient)
-        return MigrateResponse("Migration finished")
     }
 
     private fun extractScheme(connection: Connection): List<DataQuireTable> {
@@ -105,12 +110,7 @@ class SchemeService(
         }
     }
 
-    fun getContentOfTable(dsl: DSLContext, table: DataQuireTable): List<String> {
-        val records = dsl.selectFrom(table.name).fetch()
-        return records.map { record ->
-            mapper.writeValueAsString(record.intoMap())
-        }
-    }
+    private fun DataQuireDataSource.getConnection(): Connection = DriverManager.getConnection(url, username, password)
 
     private fun Connection.isConnected(): Boolean = isClosed.not()
 }
