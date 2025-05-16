@@ -4,5 +4,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties(prefix = "coordinator")
 class CoordinatorProperties(
-    val producers: List<String>
+    val loaders: List<String>,
+    val extractors: List<String>
 )

@@ -1,5 +1,6 @@
 package ru.dataquire.coordinator
 
+import org.jooq.impl.BlobBinding
 import org.jooq.impl.DSL
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
@@ -21,7 +22,7 @@ class TableManagerTest {
 
     @Test
     fun getTablesTest() {
-        mySqlConnection.use { connection ->
+        postgresConnection.use { connection ->
             val dsl = DSL.using(connection)
             println("SCHEMA: ${connection.schema}")
             println("CATALOG: ${connection.catalog}")
@@ -31,8 +32,11 @@ class TableManagerTest {
             } else {
                 dsl.meta().getSchemas(connection.schema).first().tables
             }
-
-            println(tables)
+            tables.forEach { table ->
+                val fields = table.fields()
+                val size = fields.map { it.dataType.precision() }
+                println(size)
+            }
         }
     }
 

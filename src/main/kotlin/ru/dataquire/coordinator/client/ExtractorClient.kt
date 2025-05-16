@@ -1,12 +1,12 @@
-package ru.dataquire.coordinator.service
+package ru.dataquire.coordinator.client
 
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.http.MediaType
-import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Service
-import org.springframework.web.client.*
-import ru.dataquire.coordinator.dto.ExtractorAddress
+import org.springframework.web.client.RestClient
+import org.springframework.web.client.RestClientException
+import ru.dataquire.coordinator.dto.WorkerAddress
 import ru.dataquire.coordinator.dto.request.ExtractRequest
 import ru.dataquire.coordinator.dto.response.ExtractResponse
 import ru.dataquire.coordinator.dto.response.HealthResponse
@@ -20,7 +20,7 @@ class ExtractorClient {
 
     private val restClient = RestClient.create()
 
-    fun health(address: ExtractorAddress): Boolean {
+    fun health(address: WorkerAddress): Boolean {
         return try {
             logger.info("[HEALTH] Trying to connect to {}", address)
 
@@ -41,7 +41,7 @@ class ExtractorClient {
         }
     }
 
-    fun extract(address: ExtractorAddress, request: ExtractRequest): ExtractResponse {
+    fun extract(address: WorkerAddress, request: ExtractRequest): ExtractResponse {
         return try {
             logger.info("[EXTRACT] {} in {}", request.table, address)
 
@@ -54,7 +54,7 @@ class ExtractorClient {
 
             val body = checkNotNull(extractResponse.body)
             val isSuccess = extractResponse.statusCode.is2xxSuccessful
-            logger.debug("[EXTRACT] {}", extractResponse.body)
+            logger.debug("[EXTRACT] {}", body)
             if (isSuccess) {
                 logger.info("[EXTRACT] Successfully extracted {} in {}", request.table, address)
             } else {

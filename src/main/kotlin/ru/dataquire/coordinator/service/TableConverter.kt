@@ -1,5 +1,6 @@
 package ru.dataquire.coordinator.service
 
+import org.jooq.Catalog
 import org.jooq.DSLContext
 import org.jooq.ForeignKey
 import org.jooq.Table
@@ -28,18 +29,20 @@ class TableConverter(
 
     private val dsl: DSLContext = using(connection)
     private val meta = dsl.meta()
-    private val catalog = meta.getCatalog(connection.catalog)
+    private val catalog: Catalog? = meta.getCatalog(connection.catalog)
     private val schema = meta.getSchemas(connection.schema).firstOrNull()
 
     fun getTables(): List<DataQuireTable> {
-        logger.debug("[TABLES] Get \"{}\" tables", connection.catalog)
+        val databaseName = catalog?.name ?: schema?.name
+        logger.debug("[TABLES] Get \"{}\" tables", databaseName)
         val tables = schema?.tables ?: meta.tables
         return tables.map { table -> table.toTable() }
     }
 
     fun getTables(tables: List<String>): List<DataQuireTable> {
         require(tables.isNotEmpty()) { "Tables can not be empty" }
-        logger.debug("[TABLES IN LIST] Get \"{}\" tables={}", connection.catalog, tables)
+        val databaseName = catalog?.name ?: schema?.name
+        logger.debug("[TABLES IN LIST] Get \"{}\" tables={}", databaseName, tables)
 
         val tablesInSchema = schema?.tables ?: meta.tables
         val dataQuireTables: List<DataQuireTable> = tablesInSchema
